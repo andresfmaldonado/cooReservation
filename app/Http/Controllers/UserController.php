@@ -5,9 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Role;
-use App\Rules\ValidateRole;
 use Illuminate\Validation\Rules;
-use Illuminate\Support\Facades\Redirect;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Auth\Events\Registered;
 use Yajra\DataTables\DataTables;
@@ -21,7 +20,12 @@ class UserController extends Controller
     public function index(Builder $builder)
     {
         if (request()->ajax()) {
-            return DataTables::of(User::query())->toJson();
+            return DataTables::of(User::query())->addColumn('actions', function ($item) {
+                return '<button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            <a href="'.route('edit-user', $item->id).'">Edit</a>
+                        </button><button class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded" onclick="deleteUser('.$item->id.')">Delete</button>';
+            })
+            ->rawColumns(['actions'])->toJson();
         }
 
         $table = $builder->columns([
@@ -30,6 +34,7 @@ class UserController extends Controller
                     ['data' => 'email', 'footer' => 'Email'],
                     ['data' => 'created_at', 'footer' => 'Created At'],
                     ['data' => 'updated_at', 'footer' => 'Updated At'],
+                    ['data' => 'actions', 'footer' => 'Actions']
                 ]);
 
         return view('user.list-users', compact('table'));
@@ -47,25 +52,27 @@ class UserController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'role_id' => ['required', 'integer',  new ValidateRole()],
+            'name' => ['required', 'string', 'max:50'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:100', 'unique:'.User::class],
+            'role_id' => ['nullable', 'integer'],
+            'is_super_admin' => ['nullable'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'role_id' => $request->role_id,
+            'role_id' => isset($request->role_id) ? $request->role_id : env('VISITOR_ROLE_ID'),
+            'is_super_admin' => $request->has('is_super_admin'),
             'password' => Hash::make($request->password),
         ]);
 
         event(new Registered($user));
 
-        return Redirect::route('create-user')->with('status', 'user-created');
+        return back()->with('status', 'user-created');
     }
 
     /**
@@ -81,26 +88,47 @@ class UserController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $user = User::findOrFail($id);
+        $roles = Role::select(['id', 'name'])->get();
+        return view('user.edit-user', compact('user', 'roles'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, string $id): RedirectResponse
     {
-        //
+        $request->validate([
+            'name' => ['required', 'string', 'max:50'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:100'],
+            'role_id' => ['nullable', 'integer'],
+            'is_super_admin' => ['nullable'],
+            'password' => ['nullable', 'confirmed', Rules\Password::defaults()]
+        ]);
+
+        User::find($id)->update([
+            'name' => $request->name,
+            'email' => $request->email,
+            'role_id' => isset($request->role_id) ? $request->role_id : env('VISITOR_ROLE_ID'),
+            'is_super_admin' => $request->has('is_super_admin')
+        ]);
+
+        if (isset($request->password)) {
+            User::find($id)->update([
+                'password' => Hash::make($request->password),
+            ]);
+        }
+
+        return back()->with('status', 'updated-user');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Request $request)
     {
-        //
-    }
+        User::find($request->id)->delete();
 
-    public function processDate($date) {
-        return  Carbon::parse($date)->format('Y-m-d H:i');
+        return response(200);
     }
 }
