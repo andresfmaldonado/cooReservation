@@ -19,23 +19,16 @@ class ElementController extends Controller
      */
     public function index(Builder $builder, String $id)
     {
-        $room = Room::find($id);
-        $roomElements = $room->elements;
         $elements = Element::all();
 
         if (request()->ajax()) {
             try {
-                return DataTables::of($elements)->addColumn('room_stock', function ($item) use ($roomElements) {
-                    $elementStock = $roomElements->where('id', '=', $item->id);
-                    $roomStock = (count($elementStock) > 0 && $elementStock[0]->pivot->room_stock > 0) ? $elementStock[0]->pivot->room_stock : 0;
-                    return '<input type="number" id="stock'.$item->id.'" name="stock'.$item->id.'" class="block mt-1 w-full" value="'.$roomStock.'" onchange="changeRoomElements('.$item->id.')"/>';
-                })
-                ->addColumn('actions', function ($item) {
+                return DataTables::of($elements)->addColumn('actions', function ($item) {
                     return '<button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                                 <a href="'.route('edit-element', $item->id).'">Edit element</a>
                             </button>';
                 })
-                ->rawColumns(['room_stock', 'actions'])->toJson();
+                ->rawColumns(['actions'])->toJson();
             } catch (\Throwable $th) {
                 return response(500);
             }
@@ -43,12 +36,11 @@ class ElementController extends Controller
 
         $table = $builder->columns([
                     ['data' => 'name', 'footer' => 'Name'],
-                    ['data' => 'room_stock', 'footer' => 'Room Stock'],
                     ['data' => 'created_at', 'footer' => 'Created At'],
                     ['data' => 'updated_at', 'footer' => 'Updated At'],
                     ['data' => 'actions', 'footer' => 'Actions']
                 ]);
-        return view('room.room-elements', compact('room', 'table', 'roomElements', 'elements'));
+        return view('element.list-elements', compact('table','elements'));
     }
 
     /**
@@ -103,24 +95,6 @@ class ElementController extends Controller
             return back()->with('status', 'element-updated');
         } catch (\Throwable $th) {
             return back()->with('status', 'element-not-updated');
-        }
-    }
-
-    public function roomStore(StoreRoomElementsRequest $request) {
-        try {
-            $validateStock = $this->validateStock($request->roomElements, $request->room_id);
-            if ($validateStock['flag']) {
-                $room = Room::find($request->room_id);
-
-                $room->elements()->detach();
-                $room->elements()->attach($request->roomElements);
-
-                return response(200);
-            } else {
-                return response($validateStock['messages'], 409);
-            }
-        } catch (\Throwable $th) {
-            return response(500);
         }
     }
 

@@ -24,10 +24,7 @@ class RoomController extends Controller
                     return '<button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                                 <a href="'.route('edit-room', $item->id).'">Edit</a>
                             </button>
-                            <button class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded" onclick="deleteRoom('.$item->id.')">Delete</button>
-                            <button class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded" >
-                                <a href="'.route('list-elements', $item->id).'">Elements</a>
-                            </button>';
+                            <button class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded" onclick="deleteRoom('.$item->id.')">Delete</button>';
                 })
                 ->rawColumns(['actions'])->toJson();
             } catch (\Throwable $th) {
@@ -67,14 +64,26 @@ class RoomController extends Controller
     public function store(StoreRoomRequest $request): RedirectResponse
     {
         try {
-            Room::create([
+            $room = Room::create([
                 'name' => $request->name,
                 'seating_capacity' => $request->seating_capacity,
                 'type_id' =>  $request->type_id
             ]);
 
+            if(isset($request->modules)) {
+                $room->roomModules()->delete();
+                for ($i=0; $i < $request->modules; $i++) {
+                    RoomModule::create([
+                        'name' => 'Module_'.$i,
+                        'room_id' => $room->id,
+                        'seating_capacity' =>  $request->seating_capacity / $request->modules
+                    ]);
+                }
+            }
+
             return back()->with('status', 'room-created');
         } catch (\Throwable $th) {
+            dd($th->getMessage());
             return back()->with('status', 'room-not-created');
         }
     }
@@ -87,7 +96,8 @@ class RoomController extends Controller
         try {
             $room = Room::find($id);
             $types = Type::all();
-            return view('room.edit-room', compact('room', 'types'));
+            $modulesSum = $room->roomModules == null ? 0 : count($room->roomModules);
+            return view('room.edit-room', compact('room', 'types', 'modulesSum'));
         } catch (\Throwable $th) {
             return response(500);
         }
@@ -120,6 +130,17 @@ class RoomController extends Controller
             Room::find($request->id)->delete();
 
             return response(200);
+        } catch (\Throwable $th) {
+            return response(500);
+        }
+    }
+
+    public function getRoomModules(String $id) {
+        try {
+            $room = Room::find($id);
+            $roomModules = $room->roomModules;
+
+            return response()->json($roomModules, 200);
         } catch (\Throwable $th) {
             return response(500);
         }

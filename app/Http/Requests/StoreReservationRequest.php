@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreRoomElementsRequest extends FormRequest
+class StoreReservationRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,10 +22,11 @@ class StoreRoomElementsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'room_id' => ['required', 'integer'],
-            'roomElements' => ['required', 'array'],
-            'roomElements.*.element_id' => ['required', 'integer'],
-            'roomElements.*.room_stock' => ['required', 'integer']
+            'room_id' => ['nullable', 'integer',  'exists:rooms,id'],
+            'people_number' => ['required', 'integer'],
+            'initial_date' => ['required', 'date'],
+            'final_date' => ['required', 'date'],
+            'room_module_id' => ['nullable', 'integer', 'exists:room_modules,id']
         ];
     }
 }

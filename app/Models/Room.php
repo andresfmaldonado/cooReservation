@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Element;
 
 class Room extends Model
@@ -18,12 +18,12 @@ class Room extends Model
     ];
 
     /**
-     * The elements that belong to the Room
+     * Get the roomModules that owns the Room
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function elements(): BelongsToMany
+    public function roomModules(): BelongsTo
     {
-        return $this->belongsToMany(Element::class, 'room_elements', 'room_id', 'element_id')->withPivot('room_stock');
+        return $this->belongsTo(RoomModule::class, 'id', 'room_id');
     }
 }

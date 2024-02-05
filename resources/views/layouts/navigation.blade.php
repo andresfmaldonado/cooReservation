@@ -25,6 +25,12 @@
                         <x-nav-link :href="route('rooms')" :active="request()->routeIs('rooms')">
                             {{ __('Rooms') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('reservations')" :active="request()->routeIs('reservations')">
+                            {{ __('Reservations') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('elements')" :active="request()->routeIs('elements')">
+                            {{ __('Elements') }}
+                        </x-nav-link>
                     @else
                         @if (request()->user()->role->permissions)
 

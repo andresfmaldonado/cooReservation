@@ -15,14 +15,4 @@ class Element extends Model
         'name',
         'stock'
     ];
-
-    /**
-     * The rooms that belong to the Element
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
-    public function rooms(): BelongsToMany
-    {
-        return $this->belongsToMany(Room::class, 'room_elements', 'element_id', 'room_id')->with('room_stock');
-    }
 }
