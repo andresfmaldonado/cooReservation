@@ -4,26 +4,26 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
-use App\Models\Permission;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\Element;
 
-class Role extends Model
+class Room extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'name'
+        'name',
+        'seating_capacity',
+        'type_id'
     ];
 
     /**
-     * The permissions that belong to the Role
+     * The elements that belong to the Room
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
-    public function permissions(): BelongsToMany
+    public function elements(): BelongsToMany
     {
-        return $this->belongsToMany(Permission::class, 'role_permissions', 'role_id', 'permission_id');
+        return $this->belongsToMany(Element::class, 'room_elements', 'room_id', 'element_id')->withPivot('room_stock');
     }
 }

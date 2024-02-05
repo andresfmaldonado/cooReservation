@@ -3,10 +3,8 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use App\Models\Permission;
-use App\Models\Role;
 
-class StorePermissionRequest extends FormRequest
+class UpdateElementRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -24,9 +22,8 @@ class StorePermissionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'permissions' => ['nullable', 'array'],
-            'permissions.*' => ['nullable', 'integer'],
-            'roleId' => ['required', 'integer']
+            'name' => ['required', 'string', 'max:50'],
+            'stock' => ['required', 'integer']
         ];
     }
 }

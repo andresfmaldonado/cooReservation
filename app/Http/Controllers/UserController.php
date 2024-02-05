@@ -20,12 +20,16 @@ class UserController extends Controller
     public function index(Builder $builder)
     {
         if (request()->ajax()) {
-            return DataTables::of(User::query())->addColumn('actions', function ($item) {
-                return '<button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            <a href="'.route('edit-user', $item->id).'">Edit</a>
-                        </button><button class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded" onclick="deleteUser('.$item->id.')">Delete</button>';
-            })
-            ->rawColumns(['actions'])->toJson();
+            try {
+                return DataTables::of(User::query())->addColumn('actions', function ($item) {
+                    return '<button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                <a href="'.route('edit-user', $item->id).'">Edit</a>
+                            </button><button class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded" onclick="deleteUser('.$item->id.')">Delete</button>';
+                })
+                ->rawColumns(['actions'])->toJson();
+            } catch (\Throwable $th) {
+                return response(500)->json(['message' => 'Unexpected error']);
+            }
         }
 
         $table = $builder->columns([
@@ -45,8 +49,12 @@ class UserController extends Controller
      */
     public function create()
     {
-        $roles = Role::select(['id', 'name'])->get();
-        return view('user.create-user', compact('roles'));
+        try {
+            $roles = Role::select(['id', 'name'])->get();
+            return view('user.create-user', compact('roles'));
+        } catch (\Throwable $th) {
+            return response(500);
+        }
     }
 
     /**
@@ -54,33 +62,29 @@ class UserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:50'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:100', 'unique:'.User::class],
-            'role_id' => ['nullable', 'integer'],
-            'is_super_admin' => ['nullable'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        try {
+            $request->validate([
+                'name' => ['required', 'string', 'max:50'],
+                'email' => ['required', 'string', 'lowercase', 'email', 'max:100', 'unique:'.User::class],
+                'role_id' => ['nullable', 'integer'],
+                'is_super_admin' => ['nullable'],
+                'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'role_id' => isset($request->role_id) ? $request->role_id : env('VISITOR_ROLE_ID'),
-            'is_super_admin' => $request->has('is_super_admin'),
-            'password' => Hash::make($request->password),
-        ]);
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'role_id' => isset($request->role_id) ? $request->role_id : env('VISITOR_ROLE_ID'),
+                'is_super_admin' => $request->has('is_super_admin'),
+                'password' => Hash::make($request->password),
+            ]);
 
-        event(new Registered($user));
+            event(new Registered($user));
 
-        return back()->with('status', 'user-created');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
+            return back()->with('status', 'user-created');
+        } catch (\Throwable $th) {
+            return back()->with('status', 'user-not-created');
+        }
     }
 
     /**
@@ -88,9 +92,13 @@ class UserController extends Controller
      */
     public function edit(string $id)
     {
-        $user = User::findOrFail($id);
-        $roles = Role::select(['id', 'name'])->get();
-        return view('user.edit-user', compact('user', 'roles'));
+        try {
+            $user = User::findOrFail($id);
+            $roles = Role::select(['id', 'name'])->get();
+            return view('user.edit-user', compact('user', 'roles'));
+        } catch (\Throwable $th) {
+            return response(500);
+        }
     }
 
     /**
@@ -98,28 +106,32 @@ class UserController extends Controller
      */
     public function update(Request $request, string $id): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:50'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:100'],
-            'role_id' => ['nullable', 'integer'],
-            'is_super_admin' => ['nullable'],
-            'password' => ['nullable', 'confirmed', Rules\Password::defaults()]
-        ]);
-
-        User::find($id)->update([
-            'name' => $request->name,
-            'email' => $request->email,
-            'role_id' => isset($request->role_id) ? $request->role_id : env('VISITOR_ROLE_ID'),
-            'is_super_admin' => $request->has('is_super_admin')
-        ]);
-
-        if (isset($request->password)) {
-            User::find($id)->update([
-                'password' => Hash::make($request->password),
+        try {
+            $request->validate([
+                'name' => ['required', 'string', 'max:50'],
+                'email' => ['required', 'string', 'lowercase', 'email', 'max:100'],
+                'role_id' => ['nullable', 'integer'],
+                'is_super_admin' => ['nullable'],
+                'password' => ['nullable', 'confirmed', Rules\Password::defaults()]
             ]);
-        }
 
-        return back()->with('status', 'updated-user');
+            User::find($id)->update([
+                'name' => $request->name,
+                'email' => $request->email,
+                'role_id' => isset($request->role_id) ? $request->role_id : env('VISITOR_ROLE_ID'),
+                'is_super_admin' => $request->has('is_super_admin')
+            ]);
+
+            if (isset($request->password)) {
+                User::find($id)->update([
+                    'password' => Hash::make($request->password),
+                ]);
+            }
+
+            return back()->with('status', 'user-updated');
+        } catch (\Throwable $th) {
+            return back()->with('status', 'user-not-updated');
+        }
     }
 
     /**
@@ -127,8 +139,12 @@ class UserController extends Controller
      */
     public function destroy(Request $request)
     {
-        User::find($request->id)->delete();
+        try {
+            User::find($request->id)->delete();
 
-        return response(200);
+            return response(200);
+        } catch (\Throwable $th) {
+            return response(500);
+        }
     }
 }
